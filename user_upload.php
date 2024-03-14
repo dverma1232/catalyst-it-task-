@@ -68,7 +68,8 @@ function processCSV($filename, $pdo, $dryRun = false) {
     if (($handle = fopen($filename, 'r')) !== false) {
         while (($row = fgetcsv($handle)) !== false) {
             if (!$header) {
-                $header = $row;
+                // Trim to remove whitespace
+                $header = array_map('trim', $row);
             } else {
                 $rowData = array_combine($header, array_map('trim', $row));
                 $rowData['name'] = ucfirst(strtolower($rowData['name']));
