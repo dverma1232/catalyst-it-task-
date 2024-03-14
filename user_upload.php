@@ -81,10 +81,22 @@ function processCSV($filename, $pdo, $dryRun = false) {
                     continue;
                 }
 
-                if (!$dryRun) {
+               if (!$dryRun) {
                     $sql = "INSERT INTO catalyst.users (name, surname, email) VALUES (:name, :surname, :email)";
                     $stmt = $pdo->prepare($sql);
-                    $stmt->execute($rowData);
+                    try {
+                        $stmt->execute([
+                            ':name' => $rowData['name'],
+                            ':surname' => $rowData['surname'],
+                            ':email' => $rowData['email']
+                        ]);
+                    } catch (PDOException $e) {
+                        if ($e->getCode() == 23000) { // 23000 is SQL state code for integrity constraint violation
+                            echo "Duplicate email found, skipping: {$rowData['email']}\n";
+                        } else {
+                            throw $e;
+                        }
+                    }
                 }
 
                 echo "Processed: {$rowData['email']}\n";
