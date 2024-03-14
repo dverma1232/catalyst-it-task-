@@ -51,3 +51,49 @@ if (array_key_exists('create_table', $options)) {
     echo "Table 'users' created successfully.\n";
     exit;
 }
+
+function validateEmail($email) {
+    return filter_var($email, FILTER_VALIDATE_EMAIL);
+}
+
+function processCSV($filename, $pdo, $dryRun = false) {
+    if (!file_exists($filename) || !is_readable($filename)) {
+        echo "CSV file is not readable\n";
+        exit;
+    }
+
+    $header = null;
+    $data = array();
+
+    if (($handle = fopen($filename, 'r')) !== false) {
+        while (($row = fgetcsv($handle)) !== false) {
+            if (!$header) {
+                $header = $row;
+            } else {
+                $rowData = array_combine($header, array_map('trim', $row));
+                $rowData['name'] = ucfirst(strtolower($rowData['name']));
+                $rowData['surname'] = ucfirst(strtolower($rowData['surname']));
+                $rowData['email'] = strtolower($rowData['email']);
+
+                if (!validateEmail($rowData['email'])) {
+                    echo "Invalid email format: {$rowData['email']}\n";
+                    continue;
+                }
+
+                if (!$dryRun) {
+                    $sql = "INSERT INTO catalyst.users (name, surname, email) VALUES (:name, :surname, :email)";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute($rowData);
+                }
+
+                echo "Processed: {$rowData['email']}\n";
+            }
+        }
+        fclose($handle);
+    }
+}
+
+if (isset($options['file'])) {
+    $pdo = connectDatabase($dbConfig);
+    processCSV($options['file'], $pdo, array_key_exists('dry_run', $options));
+}
